@@ -1,0 +1,2079 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>CD2 配置编辑器</title>
+<style>
+  /* ================= 基础变量 ================= */
+  :root {
+    --bg-base: #ffffff;
+    --bg-sidebar: #f8f9fa;
+    --bg-editor: #ffffff;
+    --bg-code: #f8f9fa;
+    --bg-hover: #f1f5f9;
+    --bg-active: #e2e8f0;
+    --bg-input: #ffffff;
+
+    --border-color: #e2e8f0;
+    --border-hover: #cbd5e1;
+
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --text-faint: #94a3b8;
+    
+    --accent: #2563eb;
+    --accent-bg: #eff6ff;
+    --danger: #dc2626;
+    --ok: #059669;
+
+    --radius: 6px;
+    --radius-sm: 4px;
+    --font-main: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    
+    --header-h: 48px;
+    --footer-h: 28px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body {
+    font-family: var(--font-main);
+    font-size: 13px;
+    color: var(--text-main);
+    background: var(--bg-base);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ================= 布局 ================= */
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  
+  /* ---- 顶栏 ---- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    height: var(--header-h);
+    padding: 0 16px;
+    background: #fff;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+  }
+  .brand {
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-main);
+  }
+  .brand svg { width: 18px; height: 18px; color: var(--accent); }
+  .top-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .btn {
+    font: inherit;
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color);
+    background: #fff;
+    color: var(--text-main);
+    border-radius: var(--radius);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+  }
+  .btn:hover { background: var(--bg-hover); border-color: var(--border-hover); }
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+  .btn-danger { color: var(--danger); border-color: #fecaca; background: #fef2f2; }
+  .btn-danger:hover { background: #fee2e2; border-color: #fca5a5; }
+
+  /* ---- 主体内容区 ---- */
+  .workspace {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ---- 左侧边栏 ---- */
+  .sidebar {
+    width: 240px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 12px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-faint);
+  }
+  .nav-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 8px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    margin-bottom: 2px;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 13px;
+  }
+  .nav-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-main);
+  }
+  .nav-item.active {
+    background: var(--bg-active);
+    color: var(--text-main);
+    font-weight: 500;
+  }
+  .nav-item .icon {
+    margin-right: 8px;
+    color: var(--text-faint);
+    display: flex;
+  }
+  .nav-item.active .icon { color: var(--accent); }
+
+  /* ---- 中间编辑区 ---- */
+  .editor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-editor);
+    min-width: 0;
+  }
+  .editor-toolbar {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .editor-toolbar span { color: var(--text-main); font-weight: 500; }
+  
+  .editor-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    scroll-behavior: smooth;
+  }
+
+  /* ---- 右侧代码区 ---- */
+  .code-pane {
+    width: 400px;
+    min-width: 300px;
+    max-width: 50%;
+    background: var(--bg-code);
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .code-header {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+  .code-header label {
+    font-weight: normal;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    color: var(--text-muted);
+  }
+  .code-header input[type="checkbox"] {
+    margin: 0;
+    width: 14px;
+    height: 14px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .code-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+    background: #fff;
+  }
+  .line-numbers {
+    width: 40px;
+    background: var(--bg-code);
+    border-right: 1px solid var(--border-color);
+    text-align: right;
+    padding: 12px 8px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-faint);
+    overflow: hidden;
+    user-select: none;
+  }
+  #preview {
+    flex: 1;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 12px 16px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-main);
+    background: transparent;
+    white-space: pre;
+    overflow: auto;
+    tab-size: 2;
+  }
+  .code-footer {
+    height: var(--footer-h);
+    background: var(--bg-code);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  #status.ok { color: var(--ok); }
+  #status.err { color: var(--danger); }
+
+  /* ================= 表单与字段 ================= */
+  .section {
+    margin-bottom: 32px;
+    scroll-margin-top: 24px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 0;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px 24px;
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field.wide { grid-column: 1 / -1; }
+  
+  .field label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  input[type="text"], input[type="number"], select, textarea {
+    font: inherit;
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    color: var(--text-main);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input[type="text"], input[type="number"], select { height: 32px; padding: 0 10px; }
+  textarea { padding: 8px 10px; resize: vertical; min-height: 80px; font-family: var(--font-mono); font-size: 12px; line-height: 1.5; }
+  
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-bg);
+  }
+  input[type="number"] { text-align: left; font-variant-numeric: tabular-nums; }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type="checkbox"] {
+    width: 16px; height: 16px;
+    margin: 8px 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  /* 嵌套分组 */
+  .nested-group {
+    grid-column: 1 / -1;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 16px;
+    background: var(--bg-sidebar);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .nested-group-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+  }
+
+  /* ---- 下拉多选组件 ---- */
+  .ms-wrap { position: relative; width: 100%; }
+  .ms-display {
+    height: 32px; padding: 0 10px; border: 1px solid var(--border-color);
+    border-radius: var(--radius); background: var(--bg-input); cursor: pointer;
+    display: flex; align-items: center; font-size: 13px;
+  }
+  .ms-display:hover { border-color: var(--border-hover); }
+  .ms-dropdown {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100; max-height: 250px; overflow-y: auto;
+    margin-top: 4px; padding: 6px;
+  }
+  .ms-dropdown.show { display: block; }
+  .ms-option {
+    display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+    border-radius: var(--radius-sm); cursor: pointer; font-size: 12px;
+  }
+  .ms-option:hover { background: var(--bg-hover); }
+  .ms-option input[type="checkbox"] { margin: 0; }
+
+  /* ---- 行编辑器 ---- */
+  .row-editor { display: flex; flex-direction: column; gap: 8px; }
+  .row-head {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr)) 32px;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+  .row {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr)) 32px;
+    gap: 8px;
+    align-items: center;
+  }
+  .row .del {
+    width: 32px; height: 32px; padding: 0;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-faint);
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: var(--radius);
+  }
+  .row .del:hover { color: var(--danger); background: #fee2e2; }
+  .row .del.hidden { visibility: hidden; }
+  .row-editor > .add {
+    align-self: flex-start;
+    margin-top: 4px;
+    height: 28px;
+    padding: 0 12px;
+    font-size: 12px;
+    background: #fff;
+    border: 1px dashed var(--border-hover);
+    border-radius: var(--radius);
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .row-editor > .add:hover { background: var(--accent-bg); border-color: var(--accent); }
+
+  /* ---- 面板卡片 (Enemies / Waves) ---- */
+  .panel-list { display: flex; flex-direction: column; gap: 16px; }
+  .panel {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    background: #fff;
+    overflow: hidden;
+  }
+  .panel-head {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-color);
+    gap: 12px;
+  }
+  .panel-head input {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--accent);
+    border-color: transparent;
+    background: transparent;
+    height: 28px;
+    padding: 0 8px;
+    flex: 1;
+  }
+  .panel-head input:hover { border-color: var(--border-color); background: #fff; }
+  .panel-head input:focus { background: #fff; border-color: var(--accent); }
+  
+  .panel-body { padding: 16px; }
+  .panel-body .form-grid { gap: 12px 20px; }
+  
+  .panel-details {
+    margin-top: 16px;
+    border-top: 1px dashed var(--border-color);
+    padding-top: 12px;
+  }
+  .panel-details summary {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+  }
+  .panel-details summary::-webkit-details-marker { display: none; }
+  .panel-details summary::before {
+    content: "▸"; font-size: 10px; transition: transform 0.15s;
+  }
+  .panel-details[open] summary::before { transform: rotate(90deg); }
+  .panel-details textarea { margin-top: 8px; background: var(--bg-code); }
+
+  .add-panel {
+    align-self: flex-start;
+    height: 36px;
+    padding: 0 16px;
+    border: 1px dashed var(--border-hover);
+    color: var(--text-muted);
+    background: transparent;
+    border-radius: var(--radius);
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .add-panel:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+
+  .empty-hint {
+    padding: 32px;
+    text-align: center;
+    color: var(--text-faint);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius);
+    background: var(--bg-sidebar);
+  }
+
+  /* ---- 拖拽遮罩层 ---- */
+  #dragOverlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(248, 249, 250, 0.9); /* 匹配 sidebar 背景色 */
+    backdrop-filter: blur(8px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    pointer-events: none;
+    color: var(--text-main);
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  #dragOverlay svg {
+    color: var(--accent);
+    animation: bounce 1s infinite alternate;
+  }
+  @keyframes bounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-10px); }
+  }
+
+  /* ---- Toast 提示 ---- */
+  #toast-container {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+  }
+  .toast {
+    background: #1e293b;
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .toast.success { background: var(--ok); }
+  .toast.error { background: var(--danger); }
+</style>
+</head>
+<body>
+
+<!-- 拖拽遮罩 -->
+<div id="dragOverlay">
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+  松开鼠标导入 JSON 文件
+</div>
+
+<!-- Toast 容器 -->
+<div id="toast-container"></div>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>
+      CD2 配置编辑器
+    </div>
+    <div class="top-actions">
+      <button class="btn" onclick="document.getElementById('fileInput').click()">导入 JSON</button>
+      <input type="file" id="fileInput" accept=".json" hidden>
+      <button class="btn" onclick="copyJSON()">复制 JSON</button>
+      <button class="btn btn-primary" onclick="downloadJSON()">导出 JSON</button>
+      <button class="btn btn-danger" onclick="resetApp()">重置</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="sidebar">
+      <div class="sidebar-header">配置大纲</div>
+      <div class="nav-list" id="navList"></div>
+    </aside>
+
+    <main class="editor">
+      <div class="editor-toolbar">
+        详细配置 / <span id="breadcrumb">基础信息</span>
+      </div>
+      <div class="editor-scroll" id="formPane">
+        <!-- JS 动态渲染 -->
+      </div>
+    </main>
+
+    <aside class="code-pane">
+      <div class="code-header">
+        <span>JSON 预览 (只读)</span>
+        <label>
+          <input type="checkbox" id="toggleLineNumbers" checked> 显示行号
+        </label>
+      </div>
+      <div class="code-body">
+        <div class="line-numbers" id="lineNumbers">1</div>
+        <textarea id="preview" readonly spellcheck="false"></textarea>
+      </div>
+      <div class="code-footer">
+        <span id="status" style="margin-right:12px;">就绪</span>
+        <span style="margin-left:auto;">UTF-8</span>
+        <span style="margin-left:12px;">LF</span>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+ * 常量与数据定义
+ * ============================================================ */
+const STORAGE_KEY = 'cd2_draft_data';
+
+const WRN_OPTIONS = [
+  { value: "WRN_CoreCorruption", label: "核心侵扰 Core Corruption" },
+  { value: "WRN_PitJawColony", label: "陷颚环生 Pit Jaw Colony" },
+  { value: "WRN_RockInfestation", label: "矿化爆发 Ebonite Outbreak" },
+  { value: "WRN_Ghost", label: "幽魂不散 Haunted Cave" },
+  { value: "WRN_Plague", label: "噬岩体爆发 Lithophage Outbreak" },
+  { value: "WRN_MacteraCave", label: "异虫蝇瘟疫 Mactera Plague" },
+  { value: "WRN_HeroEnemies", label: "精英威胁 Elite Threat" },
+  { value: "WRN_NoShields", label: "护盾瓦解 Shield Disruption" },
+  { value: "WRN_RegenerativeEnemies", label: "虫群再生 Regenerative Bugs" },
+  { value: "WRN_BulletHell", label: "远程狂潮 Duck and Cover" },
+  { value: "WRN_ExploderInfestation", label: "自爆群袭 Exploder Infestation" },
+  { value: "MMUT_ExplosiveEnemies", label: "易爆内脏 Volatile Guts" },
+  { value: "WRN_LethalEnemies", label: "致命虫群 Lethal Enemies" },
+  { value: "WRN_RivalIncursion", label: "强敌环伺 Rival Presence" },
+  { value: "WRN_NoOxygen", label: "氧气稀薄 Low Oxygen" },
+  { value: "WRN_InfestedEnemies", label: "寄生感染 Parasites" },
+  { value: "WRN_CaveLeechDen", label: "水蛭丛生 Cave Leech Cluster" },
+  { value: "WRN_Swarmagedon", label: "蜂拥浩劫 Swarmageddon" },
+  { value: "WRN_ScrabNestingGrounds", label: "掠痕集居 Scrab Nesting Grounds" }
+];
+
+const SECTIONS = [
+  {
+    id: "sec-basic",
+    title: "基础信息",
+    fields: [
+      { key: "Name", label: "名称", type: "text", def: "自定义 CD2 难度" },
+      { key: "Description", label: "简介", type: "textarea", def: "", wide: true },
+      { key: "Caps.MaxActiveCritters", label: "生物数量上限（建议 40）", type: "number", def: 40 },
+      { key: "Caps.MaxActiveSwarmers", label: "蜂拥数量上限", type: "number", def: 240 },
+      { key: "Caps.MaxActiveEnemies", label: "虫群数量上限", type: "number", def: 999 },
+      { key: "Resupply.Cost", label: "补给消耗硝石数量", type: "number-or-json", def: 60 },
+      { key: "NitraMultiplier", label: "硝石倍数", type: "number", def: 1 },
+      { key: "MaxPlayers", label: "最大玩家数", type: "number", def: 4 },
+      { key: "Warnings.Banned", label: "禁用红词条", type: "multiselect", def: [], options: WRN_OPTIONS },
+      { key: "SoundCues", label: "音效提示", type: "list", def: [] },
+      { key: "NextDifficulty", label: "下一阶段难度（NextDifficulty）", type: "text", def: "" },
+    ],
+  },
+  {
+    id: "sec-numlist",
+    title: "难度数值",
+    fields: [
+      { key: "DifficultySetting.ExtraLargeEnemyDamageResistance",  label: "大型敌人伤害抗性 A（无畏）", type: "numlist", def: [0.95] },
+      { key: "DifficultySetting.ExtraLargeEnemyDamageResistanceB", label: "大型敌人伤害抗性 B（王草）", type: "numlist", def: [0.01] },
+      { key: "DifficultySetting.ExtraLargeEnemyDamageResistanceC", label: "大型敌人伤害抗性 C（除虫器)", type: "numlist", def: [0.5] },
+      { key: "DifficultySetting.ExtraLargeEnemyDamageResistanceD", label: "大型敌人伤害抗性 D（精英敌人）", type: "numlist", def: [1.65] },
+      { key: "DifficultySetting.EnemyDamageResistance",            label: "敌人伤害抗性", type: "numlist", def: [1.5] },
+      { key: "DifficultySetting.SmallEnemyDamageResistance",       label: "小型敌人伤害抗性", type: "numlist", def: [1.2] },
+      { key: "DifficultySetting.EnemyDamageModifier",              label: "敌人伤害倍数", type: "numlist", def: [6.1] },
+      { key: "DifficultySetting.EnemyCountModifier",               label: "敌人数量倍数", type: "numlist", def: [3] },
+      { key: "DifficultySetting.EnvironmentalDamageModifier",      label: "环境伤害倍数", type: "numlist", def: [1.8] },
+      { key: "DifficultySetting.PointExtractionScalar",            label: "PointExtractionScalar", type: "numlist", def: [1.8] },
+      { key: "DifficultySetting.FriendlyFireModifier",             label: "友伤系数", type: "numlist", def: [1] },
+      { key: "DifficultySetting.WaveStartDelayScale",              label: "WaveStartDelayScale", type: "numlist", def: [0] },
+      { key: "DifficultySetting.SpeedModifier",                    label: "地面速度倍数", type: "numlist", def: [1.55] },
+      { key: "DifficultySetting.AttackCooldownModifier",           label: "攻击冷却倍数", type: "numlist", def: [2.5] },
+      { key: "DifficultySetting.ProjectileSpeedModifier",          label: "投射物速度倍数", type: "numlist", def: [2.35] },
+      { key: "DifficultySetting.HealthRegenerationMax",            label: "最大自然回血比例", type: "numlist", def: [0.25] },
+      { key: "DifficultySetting.ReviveHealthRatio",                label: "复活后血量比例", type: "numlist", def: [0.25] },
+    ],
+  },
+  {
+    id: "sec-dist",
+    title: "区间参数",
+    fields: [
+      { key: "DifficultySetting.EncounterDifficulty",       label: "遭遇战难度（原住民）", type: "dist", def: [{ weight: 1, min: 300, max: 350 }] },
+      { key: "DifficultySetting.StationaryDifficulty",      label: "固定单位难度", type: "dist", def: [{ weight: 1, min: 1500, max: 1550 }] },
+      { key: "DifficultySetting.EnemyWaveInterval",         label: "播报潮间隔（秒）", type: "dist", def: [{ weight: 1, min: 999, max: 999 }] },
+      { key: "DifficultySetting.EnemyNormalWaveInterval",   label: "自然潮间隔（秒）", type: "dist", def: [{ weight: 1, min: 999, max: 999 }] },
+      { key: "DifficultySetting.EnemyNormalWaveDifficulty", label: "自然潮难度", type: "dist", def: [{ weight: 1, min: 300, max: 350 }] },
+      { key: "DifficultySetting.EnemyDiversity",            label: "敌人多样性", type: "dist", def: [{ weight: 1, min: 180, max: 188 }] },
+      { key: "DifficultySetting.StationaryEnemyDiversity",  label: "固定单位多样性", type: "dist", def: [{ weight: 1, min: 88, max: 88 }] },
+      { key: "DifficultySetting.VeteranNormal",             label: "普通敌人精英化概率", type: "dist", def: [{ weight: 1, min: 0.75, max: 0.75 }] },
+      { key: "DifficultySetting.VeteranLarge",              label: "大型敌人精英化概率", type: "dist", def: [{ weight: 1, min: 0.25, max: 0.25 }] },
+    ],
+  },
+  {
+    id: "sec-pools",
+    title: "敌人池",
+    fields: [
+      { key: "Pools.MinPoolSize", label: "MinPoolSize", type: "number", def: 188 },
+      { key: "Pools.DisruptiveEnemyPoolCount.min", label: "破坏性敌人数量（最小）", type: "number", def: 180 },
+      { key: "Pools.DisruptiveEnemyPoolCount.max", label: "破坏性敌人数量（最大）", type: "number", def: 188 },
+      { key: "Pools.StationaryEnemyCount.Min", label: "固定单位数量（最小）", type: "number", def: 88 },
+      { key: "Pools.StationaryEnemyCount.Max", label: "固定单位数量（最大）", type: "number", def: 88 },
+      { 
+        type: "group", 
+        title: "普通敌人池 (EnemyPool)", 
+        fields: [
+          { key: "Pools.EnemyPool.clear", label: "清空原版池", type: "bool", def: false },
+          { key: "Pools.EnemyPool.Add", label: "添加敌人", type: "stringlist", def: [] },
+          { key: "Pools.EnemyPool.Remove", label: "移除敌人", type: "stringlist", def: [] }
+        ]
+      },
+      { 
+        type: "group", 
+        title: "常见敌人池 (CommonEnemies)", 
+        fields: [
+          { key: "Pools.CommonEnemies.clear", label: "清空原版池", type: "bool", def: false },
+          { key: "Pools.CommonEnemies.Add", label: "添加敌人", type: "stringlist", def: [] },
+          { key: "Pools.CommonEnemies.Remove", label: "移除敌人", type: "stringlist", def: [] }
+        ]
+      },
+      { 
+        type: "group", 
+        title: "破坏性敌人池 (DisruptiveEnemies)", 
+        fields: [
+          { key: "Pools.DisruptiveEnemies.clear", label: "清空原版池", type: "bool", def: false },
+          { key: "Pools.DisruptiveEnemies.Add", label: "添加敌人", type: "stringlist", def: [] },
+          { key: "Pools.DisruptiveEnemies.Remove", label: "移除敌人", type: "stringlist", def: [] }
+        ]
+      },
+      { 
+        type: "group", 
+        title: "固定单位池 (StationaryPool)", 
+        fields: [
+          { key: "Pools.StationaryPool.clear", label: "清空原版池", type: "bool", def: false },
+          { key: "Pools.StationaryPool.Add", label: "添加敌人", type: "stringlist", def: [] },
+          { key: "Pools.StationaryPool.Remove", label: "移除敌人", type: "stringlist", def: [] }
+        ]
+      },
+      { 
+        type: "group", 
+        title: "特殊敌人池 (SpecialEnemies)", 
+        fields: [
+          { key: "Pools.SpecialEnemies.clear", label: "清空原版池", type: "bool", def: false },
+          { key: "Pools.SpecialEnemies.Add", label: "添加敌人", type: "stringlist", def: [] },
+          { key: "Pools.SpecialEnemies.Remove", label: "移除敌人", type: "stringlist", def: [] }
+        ]
+      }
+    ],
+  },
+  {
+    id: "sec-special",
+    title: "特殊遭遇战",
+    fields: [
+      { key: "SpecialEncounters", label: "SpecialEncounters（JSON 数组，留空不输出）", type: "json", def: "", wide: true },
+    ],
+  },
+  {
+    id: "sec-salvage",
+    title: "搜救任务",
+    fields: [
+      {
+        type: "group",
+        title: "小矿骡",
+        fields: [
+          { key: "Salvage.MiniMules.Count", label: "矿骡数量", type: "number", def: 2 },
+          { key: "Salvage.MiniMules.NitraToGive", label: "修复给予硝石量", type: "number", def: 50 },
+          { key: "Salvage.MiniMules.LegsPerMule", label: "每只矿骡腿数量", type: "number", def: 4 },
+          { key: "Salvage.MiniMules.LegDistance", label: "矿骡腿生成距离", type: "number", def: 1500 },
+          
+          { key: "Salvage.MiniMules.ScanUsable.UseText", label: "扫描交互文字", type: "text", def: "修理矿骡" },
+          { key: "Salvage.MiniMules.ScanUsable.ResetOnFail", label: "扫描失败重置", type: "bool", def: false },
+          { key: "Salvage.MiniMules.ScanUsable.Priority", label: "扫描优先级", type: "number", def: 0 },
+          { key: "Salvage.MiniMules.ScanUsable.UseCooldown", label: "扫描冷却", type: "number", def: 0 },
+          
+          { key: "Salvage.MiniMules.RepairUsable.UseText", label: "修复交互文字", type: "text", def: "修复" },
+          { key: "Salvage.MiniMules.RepairUsable.UseDuration", label: "修复所需时间", type: "number", def: 10 },
+          { key: "Salvage.MiniMules.RepairUsable.UseCooldown", label: "修复冷却时间", type: "number", def: 0 },
+          { key: "Salvage.MiniMules.RepairUsable.CoopUse", label: "允许多人协作", type: "bool", def: true },
+          { key: "Salvage.MiniMules.RepairUsable.CoopUseMultiplier", label: "多人协作效率倍数", type: "number", def: 1 },
+          { key: "Salvage.MiniMules.RepairUsable.Priority", label: "交互优先级", type: "number", def: 0 },
+          { key: "Salvage.MiniMules.RepairUsable.ResetOnFail", label: "修复失败重置", type: "bool", def: false },
+        ]
+      },
+      {
+        type: "group",
+        title: "上传阶段",
+        fields: [
+          { key: "Salvage.Uplink.Scale", label: "防守区域大小倍数", type: "number", def: 1 },
+          { key: "Salvage.Uplink.Duration", label: "防守持续时间（秒）", type: "number", def: 80 },
+          { key: "Salvage.Uplink.DisableLeaveShout", label: "禁用离开提示语音", type: "bool", def: false },
+          { key: "Salvage.Uplink.LeavePenaltyMultiplier", label: "离开惩罚倍数", type: "number", def: 0 },
+          
+          { key: "Salvage.Uplink.RepairUsable.UseText", label: "激活交互文字", type: "text", def: "激活" },
+          { key: "Salvage.Uplink.RepairUsable.UseDuration", label: "激活所需时间", type: "number", def: 10 },
+          { key: "Salvage.Uplink.RepairUsable.UseCooldown", label: "激活冷却时间", type: "number", def: 0 },
+          { key: "Salvage.Uplink.RepairUsable.CoopUse", label: "允许多人协作", type: "bool", def: true },
+          { key: "Salvage.Uplink.RepairUsable.CoopUseMultiplier", label: "多人协作效率倍数", type: "number", def: 1 },
+          { key: "Salvage.Uplink.RepairUsable.Priority", label: "交互优先级", type: "number", def: 0 },
+          { key: "Salvage.Uplink.RepairUsable.ResetOnFail", label: "激活失败重置", type: "bool", def: false },
+        ]
+      },
+      {
+        type: "group",
+        title: "加油阶段",
+        fields: [
+          { key: "Salvage.Refuel.Scale", label: "防守区域大小倍数", type: "number", def: 1 },
+          { key: "Salvage.Refuel.Duration", label: "防守持续时间（秒）", type: "number", def: 100 },
+          { key: "Salvage.Refuel.DisableLeaveShout", label: "禁用离开提示语音", type: "bool", def: false },
+          { key: "Salvage.Refuel.LeavePenaltyMultiplier", label: "离开惩罚倍数", type: "number", def: 0 },
+          
+          { key: "Salvage.Refuel.RepairUsable.UseText", label: "加油交互文字", type: "text", def: "加油" },
+          { key: "Salvage.Refuel.RepairUsable.UseDuration", label: "加油所需时间", type: "number", def: 10 },
+          { key: "Salvage.Refuel.RepairUsable.UseCooldown", label: "加油冷却时间", type: "number", def: 0 },
+          { key: "Salvage.Refuel.RepairUsable.CoopUse", label: "允许多人协作", type: "bool", def: true },
+          { key: "Salvage.Refuel.RepairUsable.CoopUseMultiplier", label: "多人协作效率倍数", type: "number", def: 1 },
+          { key: "Salvage.Refuel.RepairUsable.Priority", label: "交互优先级", type: "number", def: 0 },
+          { key: "Salvage.Refuel.RepairUsable.ResetOnFail", label: "加油失败重置", type: "bool", def: false },
+        ]
+      }
+    ],
+  },
+  {
+    id: "sec-escort",
+    title: "执勤护送",
+    fields: [
+      { key: "EscortMule.FriendlyFireModifier", label: "朵朵友伤系数", type: "number", def: 0.1 },
+      { key: "EscortMule.NeutralDamageModifier", label: "中立伤害系数", type: "number", def: 0.1 },
+      { key: "EscortMule.BigHitDamageModifier", label: "大额伤害系数", type: "number", def: 0.98 },
+      { key: "EscortMule.BigHitDamageReductionThreshold", label: "大额减伤阈值", type: "number", def: 0.1 },
+    ],
+  },
+  {
+    id: "sec-darkness",
+    title: "光照设置",
+    fields: [
+      { key: "Darkness.FlashlightStrength", label: "头灯光照强度", type: "number", def: 1 },
+      { key: "Darkness.PlayerIllumination", label: "玩家周围光照强度", type: "number", def: 1 },
+      { key: "Darkness.FlareMax", label: "最大照明弹数量", type: "number", def: 4 },
+      { key: "Darkness.FlareStrength", label: "照明弹亮度", type: "number", def: 1 },
+      { key: "Darkness.FlareDuration", label: "照明弹持续时间", type: "number", def: 60 },
+      { key: "Darkness.FlareProductionTime", label: "照明弹恢复时间", type: "number", def: 12 },
+      { key: "Darkness.EnvironmentalLight", label: "环境光照强度", type: "number", def: 1 },
+      { key: "Darkness.DisableFog", label: "移除雾气效果", type: "bool", def: false },
+      { key: "Darkness.FlareGunStrength", label: "照明枪亮度", type: "number", def: 1 },
+      { key: "Darkness.FlareGunDuration", label: "照明枪持续时间", type: "number", def: 60 },
+    ],
+  },
+  {
+    id: "sec-dwarves",
+    title: "矮人设定",
+    fields: [
+      { key: "Dwarves.FallDamageModifier", label: "摔落伤害系数（0为无摔落伤害）", type: "number", def: 0.175 },
+      { key: "Dwarves.FallDamageStartVelocity", label: "摔落伤害速度阈值", type: "number", def: 1000 },
+      { key: "Dwarves.Scale", label: "玩家体型大小", type: "number", def: 1 },
+      { key: "Dwarves.RegenHealthPerSecond", label: "每秒自然回血量", type: "number", def: 0 },
+      { key: "Dwarves.RegenDelayAfterDamage", label: "受伤后回血延迟（秒）", type: "number", def: 5 },
+    ],
+  },
+];
+
+/* ============================================================
+ * 敌人卡片字段定义（结构化）
+ * ============================================================ */
+const ENEMY_CARD_SECTIONS = [
+  {
+    title: "基础属性",
+    fields: [
+      { key: "Base", label: "继承基类（内部名称，如：ED_Spider_Exploder）", type: "text" },
+      { key: "DisplayName", label: "游戏内显示名称", type: "text" },
+      { key: "Significance", label: "备注", type: "text" },
+      { key: "DifficultyRating", label: "DifficultyRating", type: "number" },
+      { key: "MinSpawnCount", label: "最小生成数量", type: "number" },
+      { key: "MaxSpawnCount", label: "最大生成数量", type: "number" },
+      { key: "SpawnAmountModifier", label: "生成数量倍数", type: "number" },
+      { key: "SpawnSpread", label: "生成分散程度", type: "number" },
+      { key: "Rarity", label: "稀有度", type: "number" },
+      { key: "UsesSpawnRarityModifiers", label: "UsesSpawnRarityModifiers", type: "bool" },
+      { key: "CanBeUsedForConstantPressure", label: "CanBeUsedForConstantPressure", type: "bool" },
+      { key: "CanBeUsedInEncounters", label: "CanBeUsedInEncounters", type: "bool" },
+      { key: "AttackDamageMultiplier", label: "攻击伤害倍数", type: "number" },
+      { key: "Scale", label: "Scale", type: "number" },
+      { key: "TimeDilation", label: "TimeDilation", type: "number" },
+      { key: "HealthMultiplier", label: "生命值倍数", type: "number" },
+      { key: "HealthRaw", label: "HealthRaw", type: "number" },
+      { key: "WeakpointHP", label: "弱点生命值", type: "number" },
+      { key: "NoSpawnWithin", label: "生成死区半径（玩家范围内不会生成）", type: "number" },
+      { key: "Elite", label: "是否为精英敌人（选填true/false, 0/1）", type: "text" },
+      { key: "ForceEliteBase", label: "指定精英基类", type: "text" },
+      { key: "Alert", label: "Alert", type: "bool" },
+      { key: "IsBossFight", label: "是否为Boss", type: "bool" },
+      { key: "ShowHealthBar", label: "显示血条", type: "bool" },
+      { key: "CanPlayerStandOn", label: "允许玩家站立", type: "bool" },
+      { key: "Courage", label: "Courage", type: "number" },
+    ]
+  },
+  {
+    title: "属性与抗性 (PST & Resistances)",
+    fields: [
+      { key: "Resistances.InvulnerableToNonDefinedResistances", label: "InvulnerableToNonDefinedResistances", type: "bool" },
+      { key: "Resistances.DamageMultiplier", label: "全局伤害倍数", type: "number" },
+      { key: "Resistances.FireDamageMultiplier", label: "火焰伤害抗性", type: "number" },
+      { key: "Resistances.CorrosiveDamageMultiplier", label: "腐蚀伤害抗性", type: "number" },
+      { key: "Resistances.ElectricDamageMultiplier", label: "电击伤害抗性", type: "number" },
+      { key: "Resistances.ColdDamageMultiplier", label: "冰冻伤害抗性", type: "number" },
+      { key: "Resistances.KineticDamageMultiplier", label: "动能伤害抗性", type: "number" },
+      { key: "Resistances.PhysicalDamageMultiplier", label: "近战伤害抗性", type: "number" },
+      { key: "Resistances.ExplosionDamageMultiplier", label: "爆炸伤害抗性", type: "number" },
+      { key: "Resistances.InternalDamageMultiplier", label: "内部伤害抗性", type: "number" },
+      { key: "Resistances.RadiationDamageMultiplier", label: "辐射伤害抗性", type: "number" },
+      { key: "Resistances.PoisonDamageMultiplier", label: "毒素伤害抗性", type: "number" },
+      { key: "Resistances.PiercingDamageMultiplier", label: "穿透伤害抗性", type: "number" },
+      { key: "PST_CritBonusDamage", label: "暴击伤害倍数", type: "number" },
+      { key: "PST_CritChance", label: "暴击概率", type: "number" },
+      { key: "PST_DamageFromPlayers", label: "来自玩家伤害倍数", type: "number" },
+      { key: "PST_ExplodeOnDeath", label: "易爆内脏 (0/1)", type: "number" },
+    ]
+  },
+  {
+    title: "移动控制 (Movement)",
+    fields: [
+      { key: "Movement.MaxPawnSpeed", label: "最大速度", type: "number" },
+      { key: "Movement.StrafeSpeed", label: "侧移速度", type: "number" },
+      { key: "Movement.MinSlowdownAngle", label: "最小减速角度", type: "number" },
+      { key: "Movement.MaxSlowdownAngle", label: "最大减速角度", type: "number" },
+      { key: "Movement.MaxStrafeDistance", label: "最大侧移距离", type: "number" },
+      { key: "Movement.AlignDirectionSpeed", label: "转身速度", type: "number" },
+      { key: "Movement.FleeSpeedBoostMultiplier", label: "逃跑速度提升", type: "number" },
+      { key: "Movement.MaxAcceleration", label: "加速度", type: "number" },
+      { key: "Movement.MaxBrakingDeceleration", label: "制动减速度", type: "number" },
+      { key: "Movement.AlignToTargetMinRequiredAngle", label: "转身所需角度", type: "number" },
+    ]
+  },
+  {
+    title: "温度系统 (Temperature)",
+    fields: [
+      { key: "Temperature.DieIfFrozen", label: "冻结即死", type: "bool" },
+      { key: "Temperature.DieIfBurning", label: "燃烧即死", type: "bool" },
+      { key: "Temperature.IsHeatsourceWhenOnFire", label: "燃烧成为热源", type: "bool" },
+      { key: "Temperature.OnFireHeatRange", label: "燃烧热量范围", type: "number" },
+      { key: "Temperature.BurnTemperature", label: "点燃温度", type: "number" },
+      { key: "Temperature.DouseFireTemperature", label: "灭火温度", type: "number" },
+      { key: "Temperature.FreezeTemperature", label: "冻结温度", type: "number" },
+      { key: "Temperature.UnfreezeTemperature", label: "解冻温度", type: "number" },
+      { key: "Temperature.WarmingRate", label: "升温速率", type: "number" },
+      { key: "Temperature.CoolingRate", label: "降温速率", type: "number" },
+      { key: "Temperature.TemperatureChangeScale", label: "变化速率倍数", type: "number" },
+      { key: "Temperature.FozenDamageBonusScale", label: "冻结伤害倍数", type: "number" },
+      { key: "Temperature.MaxColdSlowdown", label: "寒冷减速上限", type: "number" },
+    ]
+  },
+  {
+    title: "硬直与召唤 (Stagger & Spawner)",
+    fields: [
+      { key: "StaggerImmunityWindow", label: "硬直免疫窗口", type: "number" },
+      { key: "StaggerDurationMultiplier", label: "硬直持续时间倍数", type: "number" },
+      { key: "Spawner.OnSpawnDelay", label: "首次生成延迟", type: "number" },
+      { key: "Spawner.OnSpawnCount", label: "初始生成数量", type: "number" },
+      { key: "Spawner.OnDeathCount", label: "死亡生成数量", type: "number" },
+      { key: "Spawner.IntervalSpawnCount", label: "周期生成数量", type: "number" },
+      { key: "Spawner.Interval", label: "周期间隔", type: "number" },
+      { key: "Spawner.ED", label: "生成的敌人(ED)", type: "text" },
+      { key: "Spawner.MaxSpawns", label: "最大存活数量", type: "number" },
+      { key: "Spawner.OnDeathKillSpawns", label: "宿主死亡杀死生成物", type: "bool" },
+      { key: "Spawner.OnlySpawnOnAlert", label: "仅警觉时生成", type: "bool" },
+    ]
+  },
+  {
+    title: "治疗/标记/外观 (Heal & Outline)",
+    fields: [
+      { key: "Heal.InitialRate", label: "初始治疗率", type: "number" },
+      { key: "Heal.FinalRate", label: "最终治疗率", type: "number" },
+      { key: "Heal.SwitchAfter", label: "切换时间", type: "number" },
+      { key: "Outline.Enabled", label: "轮廓标记", type: "bool" },
+      { key: "Outline.Type", label: "轮廓类型", type: "text" },
+      { key: "Materials", label: "外观材质（逗号分隔）", type: "list" },
+      { key: "Projectile", label: "投射物 (Projectile)", type: "text" },
+    ]
+  },
+  {
+    title: "复杂/专属系统 JSON",
+    fields: [
+      { key: "CustomVeterans", label: "变异系统 (CustomVeterans)", type: "json" },
+      { key: "Direct", label: "UE4原生属性 (Direct)", type: "json" },
+      { key: "JellyBreeder", label: "大水母专属 (JellyBreeder)", type: "json" },
+      { key: "Grabber", label: "捕手蝇专属 (Grabber)", type: "json" },
+      { key: "CaveLeech", label: "水蛭专属 (CaveLeech)", type: "json" },
+    ]
+  }
+];
+
+const WAVE_SIMPLE_FIELDS = [
+  { key: "Interval", label: "间隔（秒）", type: "number" },
+  { key: "Difficulty", label: "难度", type: "number" },
+  { key: "Distance", label: "距离（米）", type: "number" },
+  { key: "Diversity", label: "Diversity", type: "number" },
+  { key: "Locations", label: "Locations", type: "number" },
+  { key: "SpawnOnEnable", label: "SpawnOnEnable", type: "bool" },
+  { key: "UnlockInterval", label: "UnlockInterval", type: "bool" },
+  { key: "PauseOnDisable", label: "PauseOnDisable", type: "bool" },
+  { key: "Alert", label: "Alert", type: "bool" },
+];
+
+const ORDER = [
+  "Name", "Description", "Caps", "Messages", "Vars", "Resupply", "Dwarves",
+  "DifficultySetting", "Darkness", "Salvage", "Enemies", "EnemiesNoSync", 
+  "Pools", "EscortMule", "WaveSpawners", "SoundCues", "SpecialEncounters", 
+  "NitraMultiplier", "MaxPlayers", "NextDifficulty", "Warnings",
+];
+
+/* ============================================================
+ * 工具函数
+ * ============================================================ */
+function toNumber(s) {
+  s = String(s).trim();
+  if (s === "") return 0;
+  const f = Number(s);
+  return Number.isFinite(f) ? f : 0;
+}
+function getPath(obj, path) {
+  return path.split(".").reduce((cur, k) => (cur && typeof cur === "object" ? cur[k] : undefined), obj);
+}
+function setPath(obj, path, value) {
+  const keys = path.split(".");
+  let cur = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (!cur[keys[i]] || typeof cur[keys[i]] !== "object") cur[keys[i]] = {};
+    cur = cur[keys[i]];
+  }
+  cur[keys[keys.length - 1]] = value;
+}
+function splitList(s) {
+  return String(s).split(/[,，\n]/).map(x => x.trim()).filter(Boolean);
+}
+function el(tag, attrs = {}, children = []) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else if (k === "style") node.style.cssText = v;
+    else if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2), v);
+    else if (k === "checked" || k === "disabled" || k === "readonly") node[k] = !!v;
+    else if (v !== undefined && v !== null) node.setAttribute(k, v);
+  }
+  for (const c of [].concat(children)) {
+    if (c == null) continue;
+    node.appendChild(typeof c === "string" || typeof c === "number" ? document.createTextNode(String(c)) : c);
+  }
+  return node;
+}
+let genTimer = null;
+function scheduleGenerate() {
+  if (genTimer) clearTimeout(genTimer);
+  genTimer = setTimeout(generate, 150);
+}
+
+/* ============================================================
+ * 多选下拉组件
+ * ============================================================ */
+class MultiSelect {
+  constructor(mount, options, values, onChange) {
+    this.mount = mount;
+    this.options = options;
+    this.selected = new Set(values || []);
+    this.onChange = onChange;
+    this.render();
+  }
+  render() {
+    this.mount.innerHTML = "";
+    const wrap = el("div", { class: "ms-wrap" });
+    const display = el("div", { class: "ms-display" });
+    const dropdown = el("div", { class: "ms-dropdown" });
+    
+    const updateText = () => {
+      if (this.selected.size === 0) {
+        display.textContent = "未选择任何词条";
+        display.style.color = "var(--text-faint)";
+      } else {
+        display.textContent = `已选择 ${this.selected.size} 项`;
+        display.style.color = "var(--text-main)";
+      }
+    };
+
+    display.addEventListener("click", (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle("show");
+    });
+    
+    document.addEventListener("click", (e) => {
+      if (!wrap.contains(e.target)) dropdown.classList.remove("show");
+    });
+
+    this.options.forEach(opt => {
+      const lbl = el("label", { class: "ms-option" });
+      const cb = el("input", { type: "checkbox", value: opt.value });
+      cb.checked = this.selected.has(opt.value);
+      cb.addEventListener("change", () => {
+        if (cb.checked) this.selected.add(opt.value);
+        else this.selected.delete(opt.value);
+        updateText();
+        this.onChange();
+      });
+      lbl.appendChild(cb);
+      lbl.appendChild(document.createTextNode(opt.label));
+      dropdown.appendChild(lbl);
+    });
+    
+    updateText();
+    wrap.appendChild(display);
+    wrap.appendChild(dropdown);
+    this.mount.appendChild(wrap);
+  }
+  getValues() {
+    return Array.from(this.selected);
+  }
+  setValues(vals) {
+    this.selected = new Set(vals || []);
+    this.render();
+  }
+}
+
+/* ============================================================
+ * 行编辑器
+ * ============================================================ */
+class RowEditor {
+  constructor(mount, cols, values, onChange, opts = {}) {
+    this.mount = mount;
+    this.cols = cols;
+    this.onChange = onChange;
+    this.showHead = opts.showHead !== false;
+    this.inputType = opts.inputType || "number"; 
+    this.values = (Array.isArray(values) && values.length) ? values.map(v => ({ ...v })) : [{}];
+    this.render();
+  }
+  render() {
+    this.mount.innerHTML = "";
+    const editor = el("div", { class: "row-editor" });
+    editor.style.setProperty("--cols", this.cols.length);
+    if (this.showHead) {
+      const head = el("div", { class: "row-head" });
+      this.cols.forEach(c => head.appendChild(el("span", {}, c.label || "")));
+      head.appendChild(el("span"));
+      editor.appendChild(head);
+    }
+    this.values.forEach((row, i) => {
+      const rowEl = el("div", { class: "row" });
+      this.cols.forEach(c => {
+        const input = el("input", { type: this.inputType });
+        if (this.inputType === "number") input.step = "any";
+        input.value = row[c.key] ?? "";
+        input.addEventListener("input", () => {
+          this.values[i][c.key] = input.value;
+          this.onChange();
+        });
+        rowEl.appendChild(input);
+      });
+      const del = el("button", { class: "del" + (this.values.length <= 1 ? " hidden" : ""), type: "button", title: "删除" }, "×");
+      del.addEventListener("click", () => {
+        if (this.values.length <= 1) return;
+        this.values.splice(i, 1);
+        this.render();
+        this.onChange();
+      });
+      rowEl.appendChild(del);
+      editor.appendChild(rowEl);
+    });
+    const add = el("button", { class: "add", type: "button" }, "＋ 添加");
+    add.addEventListener("click", () => {
+      const blank = {};
+      this.cols.forEach(c => blank[c.key] = "");
+      this.values.push(blank);
+      this.render();
+    });
+    editor.appendChild(add);
+    this.mount.appendChild(editor);
+  }
+  getValues() {
+    return this.values.map(row => {
+      const out = {};
+      this.cols.forEach(c => {
+        if (this.inputType === "number") out[c.key] = toNumber(row[c.key]);
+        else out[c.key] = String(row[c.key] || "").trim();
+      });
+      return out;
+    });
+  }
+  setValues(values) {
+    this.values = (Array.isArray(values) && values.length) ? values.map(v => ({ ...v })) : [{}];
+    this.render();
+  }
+}
+
+/* ============================================================
+ * 界面渲染
+ * ============================================================ */
+const widgetRegistry = {};
+
+function renderSidebar() {
+  const nav = document.getElementById("navList");
+  const items = [
+    ...SECTIONS, 
+    { id: "sec-enemies", title: "自定义敌人 (Enemies)" }, 
+    { id: "sec-enemies-nosync", title: "无同步敌人 (EnemiesNoSync)" },
+    { id: "sec-waves", title: "虫潮生成器 (WaveSpawners)" }
+  ];
+  
+  items.forEach(sec => {
+    const item = el("div", { class: "nav-item", "data-target": sec.id });
+    item.innerHTML = `
+      <div class="icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </div>
+      <span>${sec.title}</span>
+    `;
+    item.addEventListener("click", () => {
+      const target = document.getElementById(sec.id);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    nav.appendChild(item);
+  });
+}
+
+function makeSection(id, title) {
+  const sec = el("div", { class: "section", id: id });
+  sec.appendChild(el("div", { class: "section-header" }, [
+    el("h2", { class: "section-title" }, title)
+  ]));
+  const body = el("div", { class: "form-grid" });
+  sec.appendChild(body);
+  return { section: sec, body };
+}
+
+function renderSimpleField(parent, field) {
+  if (field.type === "group") {
+    const groupEl = el("div", { class: "field wide nested-group" });
+    groupEl.appendChild(el("div", { class: "nested-group-title" }, field.title));
+    const grid = el("div", { class: "form-grid" });
+    field.fields.forEach(f => renderSimpleField(grid, f));
+    groupEl.appendChild(grid);
+    parent.appendChild(groupEl);
+    return;
+  }
+
+  const box = el("div", { class: "field" + (field.wide ? " wide" : "") });
+  box.appendChild(el("label", { title: field.label }, field.label));
+  let widget;
+
+  if (field.type === "text") {
+    widget = el("input", { type: "text" });
+    widget.value = field.def ?? "";
+    widget.addEventListener("input", scheduleGenerate);
+  } else if (field.type === "number") {
+    widget = el("input", { type: "number", step: "any" });
+    widget.value = field.def ?? "";
+    widget.addEventListener("input", scheduleGenerate);
+  } else if (field.type === "number-or-json") {
+    widget = el("input", { type: "text" });
+    widget.value = field.def ?? "";
+    widget.placeholder = "填数字，或输入 {...} 动态配置";
+    widget.addEventListener("input", scheduleGenerate);
+  } else if (field.type === "textarea") {
+    widget = el("textarea", { rows: "3" });
+    widget.value = field.def ?? "";
+    widget.addEventListener("input", scheduleGenerate);
+  } else if (field.type === "list") {
+    widget = el("input", { type: "text" });
+    widget.value = (field.def || []).join(", ");
+    widget.placeholder = " ";
+    widget.addEventListener("input", scheduleGenerate);
+  } else if (field.type === "bool") {
+    widget = el("input", { type: "checkbox" });
+    widget.checked = !!field.def;
+    widget.addEventListener("change", scheduleGenerate);
+  } else if (field.type === "numlist") {
+    widget = el("div");
+    widget.editor = new RowEditor(widget, [{ key: "value", label: "" }],
+      (field.def || [0]).map(v => ({ value: v })), scheduleGenerate,
+      { showHead: false });
+  } else if (field.type === "stringlist") {
+    widget = el("div");
+    widget.editor = new RowEditor(widget, [{ key: "value", label: "" }],
+      (field.def || []).map(v => ({ value: v })), scheduleGenerate,
+      { showHead: false, inputType: "text" });
+  } else if (field.type === "dist") {
+    widget = el("div");
+    const cols = [
+      { key: "weight", label: "权重" },
+      { key: "min", label: "最小" },
+      { key: "max", label: "最大" },
+    ];
+    widget.editor = new RowEditor(widget, cols, field.def || [{}], scheduleGenerate);
+  } else if (field.type === "json") {
+    widget = el("textarea", { rows: "4" });
+    widget.value = field.def ?? "";
+    widget.placeholder = '例如: [{"BaseChance":0.05,"Enemy":"ED_HydraWeed"}]';
+    widget.addEventListener("input", scheduleGenerate);
+  } else if (field.type === "multiselect") {
+    widget = el("div");
+    widget.ms = new MultiSelect(widget, field.options, field.def, scheduleGenerate);
+  }
+  
+  widgetRegistry[field.key] = { field, widget };
+  box.appendChild(widget);
+  parent.appendChild(box);
+}
+
+function renderSimpleSections() {
+  const pane = document.getElementById("formPane");
+  SECTIONS.forEach(sec => {
+    const { section, body } = makeSection(sec.id, sec.title);
+    sec.fields.forEach(f => renderSimpleField(body, f));
+    pane.appendChild(section);
+  });
+}
+
+/* ============================================================
+ * 卡片区域 (Enemies / Waves)
+ * ============================================================ */
+function createEmptyHint(text) {
+  return el("div", { class: "empty-hint" }, text);
+}
+
+function createEnemyCard(key = "", data = {}, listId = "enemyList") {
+  const card = el("div", { class: "panel" });
+  const head = el("div", { class: "panel-head" });
+  
+  const idInput = el("input", { type: "text", placeholder: "敌人 ID (例如 ED_Spider_Exploder)" });
+  idInput.value = key;
+  idInput.addEventListener("input", scheduleGenerate);
+  
+  const remove = el("button", { class: "btn btn-danger", type: "button", style: "height:26px;padding:0 10px;font-size:12px;" }, "移除");
+  remove.addEventListener("click", () => {
+    card.remove();
+    if (!document.querySelector(`#${listId} .panel`)) {
+      document.getElementById(listId).appendChild(createEmptyHint("暂无自定义敌人"));
+    }
+    scheduleGenerate();
+  });
+  head.appendChild(idInput);
+  head.appendChild(remove);
+  card.appendChild(head);
+
+  const body = el("div", { class: "panel-body" });
+  
+  const knownRootKeys = new Set();
+  
+  // 1. 渲染结构化字段
+  ENEMY_CARD_SECTIONS.forEach(sec => {
+    sec.fields.forEach(f => {
+      knownRootKeys.add(f.key.split('.')[0]);
+    });
+
+    const isBasic = sec.title === "基础属性";
+    const container = isBasic ? el("div") : el("details", { class: "panel-details" });
+    
+    if (!isBasic) {
+      container.appendChild(el("summary", {}, sec.title));
+    }
+    
+    const grid = el("div", { class: "form-grid", style: isBasic ? "" : "margin-top:12px" });
+    
+    sec.fields.forEach(f => {
+      const box = el("div", { class: "field" });
+      box.appendChild(el("label", { title: f.label }, f.label));
+      
+      const val = getPath(data, f.key);
+      let w;
+      
+      if (f.type === "text") {
+        w = el("input", { type: "text" });
+        w.value = val !== undefined ? val : "";
+        w.addEventListener("input", scheduleGenerate);
+      } else if (f.type === "number") {
+        w = el("input", { type: "number", step: "any" });
+        w.value = val !== undefined ? val : "";
+        w.addEventListener("input", scheduleGenerate);
+      } else if (f.type === "bool") {
+        w = el("input", { type: "checkbox" });
+        w.checked = !!val;
+        w.addEventListener("change", scheduleGenerate);
+      } else if (f.type === "list") {
+        w = el("input", { type: "text" });
+        w.value = Array.isArray(val) ? val.join(", ") : (val || "");
+        w.addEventListener("input", scheduleGenerate);
+      } else if (f.type === "json") {
+        w = el("textarea", { rows: "3", style: "font-size:11px;" });
+        w.value = val ? JSON.stringify(val, null, 2) : "";
+        w.addEventListener("input", scheduleGenerate);
+      }
+      
+      w.dataset.key = f.key;
+      w.dataset.kind = f.type;
+      box.appendChild(w);
+      grid.appendChild(box);
+    });
+    
+    container.appendChild(grid);
+    body.appendChild(container);
+  });
+
+  // 2. 兜底 JSON（其他未列出的字段）
+  const extraData = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (!knownRootKeys.has(k)) extraData[k] = v;
+  }
+  const detailsAdv = el("details", { class: "panel-details" });
+  detailsAdv.appendChild(el("summary", {}, "未列出的高级 JSON (其他字段)"));
+  const adv = el("textarea", { rows: "3" });
+  adv.value = Object.keys(extraData).length ? JSON.stringify(extraData, null, 2) : "";
+  adv.placeholder = '例如: {"UnknownField": 123}';
+  adv.addEventListener("input", scheduleGenerate);
+  detailsAdv.appendChild(adv);
+  body.appendChild(detailsAdv);
+
+  card.appendChild(body);
+  card._idInput = idInput;
+  card._adv = adv;
+  return card;
+}
+
+function setupEnemiesEditor() {
+  const pane = document.getElementById("formPane");
+  
+  // 1. Enemies
+  const { section, body } = makeSection("sec-enemies", "自定义敌人 (Enemies)");
+  body.className = ""; 
+  body.appendChild(el("div", { style: "font-size:12px;color:var(--text-muted);margin-bottom:12px;" }, 
+    "支持材质、boss血条显示等高级功能，但需要客机也安装 CD2，否则客机将会掉线。"));
+  
+  const list = el("div", { class: "panel-list", id: "enemyList" });
+  list.appendChild(createEmptyHint("暂无自定义敌人，点击下方添加"));
+  body.appendChild(list);
+
+  const add = el("button", { class: "add-panel", type: "button" }, "＋ 添加敌人");
+  add.addEventListener("click", () => {
+    const hint = list.querySelector(".empty-hint");
+    if (hint) hint.remove();
+    list.appendChild(createEnemyCard("", {}, "enemyList"));
+    scheduleGenerate();
+  });
+  body.appendChild(add);
+  pane.appendChild(section);
+
+  // 2. EnemiesNoSync
+  const { section: sectionNS, body: bodyNS } = makeSection("sec-enemies-nosync", "无同步敌人 (EnemiesNoSync)");
+  bodyNS.className = ""; 
+  bodyNS.appendChild(el("div", { style: "font-size:12px;color:var(--text-muted);margin-bottom:12px;" }, 
+    "兼容所有客户端，客机不会掉线，但材质和血条等功能只有房主能看见。"));
+    
+  const listNS = el("div", { class: "panel-list", id: "enemyListNS" });
+  listNS.appendChild(createEmptyHint("暂无无同步敌人，点击下方添加"));
+  bodyNS.appendChild(listNS);
+
+  const addNS = el("button", { class: "add-panel", type: "button" }, "＋ 添加敌人");
+  addNS.addEventListener("click", () => {
+    const hint = listNS.querySelector(".empty-hint");
+    if (hint) hint.remove();
+    listNS.appendChild(createEnemyCard("", {}, "enemyListNS"));
+    scheduleGenerate();
+  });
+  bodyNS.appendChild(addNS);
+  pane.appendChild(sectionNS);
+}
+
+function createWaveCard(data = {}) {
+  const card = el("div", { class: "panel" });
+  const head = el("div", { class: "panel-head" });
+  const nameInput = el("input", { type: "text", placeholder: "波次名称" });
+  nameInput.value = data.Name ?? "";
+  nameInput.addEventListener("input", scheduleGenerate);
+  
+  const remove = el("button", { class: "btn btn-danger", type: "button", style: "height:26px;padding:0 10px;font-size:12px;" }, "移除");
+  remove.addEventListener("click", () => {
+    card.remove();
+    if (!document.querySelector("#waveList .panel")) {
+      document.getElementById("waveList").appendChild(createEmptyHint("暂无虫潮生成器"));
+    }
+    scheduleGenerate();
+  });
+  head.appendChild(nameInput);
+  head.appendChild(remove);
+  card.appendChild(head);
+
+  const body = el("div", { class: "panel-body" });
+  const grid = el("div", { class: "form-grid" });
+
+  const enemiesBox = el("div", { class: "field wide" });
+  enemiesBox.appendChild(el("label", {}, "Enemies（敌人生成列表，逗号分隔）"));
+  const enemiesInput = el("input", { type: "text" });
+  enemiesInput.value = Array.isArray(data.Enemies) ? data.Enemies.join(", ") : "";
+  enemiesInput.placeholder = "ED_Spider_Grunt, ED_Spider_Grunt_Guard";
+  enemiesInput.addEventListener("input", scheduleGenerate);
+  enemiesBox.appendChild(enemiesInput);
+  grid.appendChild(enemiesBox);
+
+  const simpleKeys = new Set([...WAVE_SIMPLE_FIELDS.map(f => f.key), "Enemies"]);
+  const advData = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (!simpleKeys.has(k)) advData[k] = v;
+  }
+
+  const enabledBox = el("div", { class: "field" });
+  enabledBox.appendChild(el("label", {}, "是否启用"));
+  const enabledCb = el("input", { type: "checkbox" });
+  enabledCb.checked = data.Enabled === true;
+  enabledCb.addEventListener("change", scheduleGenerate);
+  enabledBox.appendChild(enabledCb);
+  grid.appendChild(enabledBox);
+
+  WAVE_SIMPLE_FIELDS.forEach(f => {
+    const box = el("div", { class: "field" });
+    box.appendChild(el("label", { title: f.label }, f.label));
+    let w;
+    if (f.type === "text") {
+      w = el("input", { type: "text" });
+      w.value = data[f.key] ?? "";
+      w.addEventListener("input", scheduleGenerate);
+    } else if (f.type === "number") {
+      w = el("input", { type: "number", step: "any" });
+      w.value = data[f.key] ?? "";
+      w.addEventListener("input", scheduleGenerate);
+    } else if (f.type === "bool") {
+      w = el("input", { type: "checkbox" });
+      w.checked = !!data[f.key];
+      w.addEventListener("change", scheduleGenerate);
+    }
+    w.dataset.key = f.key;
+    w.dataset.kind = f.type;
+    box.appendChild(w);
+    grid.appendChild(box);
+  });
+  body.appendChild(grid);
+
+  const details = el("details", { class: "panel-details" });
+  details.appendChild(el("summary", {}, "高级 JSON (Enabled 条件、动态 Interval / Difficulty 等)"));
+  const adv = el("textarea", { rows: "4" });
+  adv.value = Object.keys(advData).length ? JSON.stringify(advData, null, 2) : "";
+  adv.placeholder = '例如: {"Enabled":{"Mutate":"TriggerOnce","In":{"Mutate":"SecondaryFinished"}}}';
+  adv.addEventListener("input", scheduleGenerate);
+  details.appendChild(adv);
+  body.appendChild(details);
+
+  card.appendChild(body);
+  card._enemiesInput = enemiesInput;
+  card._enabledCb = enabledCb;
+  card._grid = grid;
+  card._adv = adv;
+  return card;
+}
+
+function setupWavesEditor() {
+  const pane = document.getElementById("formPane");
+  const { section, body } = makeSection("sec-waves", "虫潮生成器 (WaveSpawners)");
+  body.className = "";
+  
+  const list = el("div", { class: "panel-list", id: "waveList" });
+  list.appendChild(createEmptyHint("暂无虫潮生成器，点击下方添加"));
+  body.appendChild(list);
+
+  const add = el("button", { class: "add-panel", type: "button" }, "＋ 添加波次");
+  add.addEventListener("click", () => {
+    const hint = list.querySelector(".empty-hint");
+    if (hint) hint.remove();
+    list.appendChild(createWaveCard());
+    scheduleGenerate();
+  });
+  body.appendChild(add);
+  pane.appendChild(section);
+}
+
+/* ============================================================
+ * 数据收集与生成
+ * ============================================================ */
+function collectEnemyList(listId) {
+  const out = {};
+  document.querySelectorAll(`#${listId} .panel`).forEach(card => {
+    const key = card._idInput.value.trim();
+    if (!key) return;
+    const obj = {};
+    
+    // 遍历所有带有 data-key 的输入框
+    card.querySelectorAll("[data-key]").forEach(w => {
+      const k = w.dataset.key;
+      const kind = w.dataset.kind;
+      let v;
+      
+      if (kind === "bool") {
+        v = !!w.checked;
+      } else if (kind === "number") {
+        if (w.value === "") return;
+        const n = Number(w.value);
+        if (Number.isFinite(n)) v = n;
+      } else if (kind === "json") {
+        const raw = w.value.trim();
+        if (!raw) return;
+        try { v = JSON.parse(raw); }
+        catch (e) { throw new Error(`敌人「${key}」字段 ${k} JSON 错误：${e.message}`); }
+      } else if (kind === "list") {
+        v = splitList(w.value);
+      } else {
+        const str = w.value.trim();
+        if (str === "") return;
+        if (k === "Elite") {
+          if (str === "true") v = true;
+          else if (str === "false") v = false;
+          else {
+            const n = Number(str);
+            v = Number.isFinite(n) ? n : str;
+          }
+        } else {
+          v = str;
+        }
+      }
+      
+      if (v !== undefined) {
+        setPath(obj, k, v);
+      }
+    });
+
+    const advText = card._adv.value.trim();
+    if (advText) {
+      try {
+        const adv = JSON.parse(advText);
+        if (adv && typeof adv === "object" && !Array.isArray(adv)) {
+          Object.assign(obj, adv);
+        }
+      } catch (e) { throw new Error(`敌人「${key}」兜底 JSON 错误：${e.message}`); }
+    }
+    
+    // 清理空对象
+    const clean = (o) => {
+      for (const k in o) {
+        if (o[k] && typeof o[k] === 'object' && !Array.isArray(o[k])) {
+          clean(o[k]);
+          if (Object.keys(o[k]).length === 0) delete o[k];
+        }
+      }
+      return o;
+    };
+    out[key] = clean(obj);
+  });
+  return out;
+}
+
+function collectWaves() {
+  const out = [];
+  document.querySelectorAll("#waveList .panel").forEach(card => {
+    const obj = {};
+    const enemies = splitList(card._enemiesInput.value);
+    if (enemies.length) obj.Enemies = enemies;
+    obj.Enabled = !!card._enabledCb.checked;
+    card._grid.querySelectorAll("[data-key]").forEach(w => {
+      const k = w.dataset.key;
+      const kind = w.dataset.kind;
+      if (kind === "bool") obj[k] = !!w.checked;
+      else if (kind === "number") {
+        if (w.value === "") return;
+        const n = Number(w.value);
+        if (Number.isFinite(n)) obj[k] = n;
+      } else {
+        const v = w.value.trim();
+        if (v === "") return;
+        obj[k] = v;
+      }
+    });
+    const advText = card._adv.value.trim();
+    if (advText) {
+      try {
+        const adv = JSON.parse(advText);
+        if (adv && typeof adv === "object" && !Array.isArray(adv)) Object.assign(obj, adv);
+      } catch (e) { throw new Error(`波次「${obj.Name || "未命名"}」高级 JSON 错误：${e.message}`); }
+    }
+    out.push(obj);
+  });
+  return out;
+}
+
+function collectSimple() {
+  const data = {};
+  for (const [key, { field, widget }] of Object.entries(widgetRegistry)) {
+    let v;
+    switch (field.type) {
+      case "text": case "textarea": v = widget.value; break;
+      case "number": v = widget.value === "" ? 0 : Number(widget.value); break;
+      case "number-or-json": 
+        const rawVal = widget.value.trim();
+        if (rawVal.startsWith("{") || rawVal.startsWith("[")) {
+          try { v = JSON.parse(rawVal); }
+          catch (e) { throw new Error(`${field.label} JSON 错误：${e.message}`); }
+        } else {
+          v = rawVal === "" ? 0 : Number(rawVal);
+        }
+        break;
+      case "list": v = splitList(widget.value); break;
+      case "bool": v = !!widget.checked; break;
+      case "numlist":
+        const nums = widget.editor.getValues().map(r => r.value);
+        v = nums.length === 1 ? nums[0] : nums;
+        break;
+      case "stringlist":
+        const strs = widget.editor.getValues().map(r => String(r.value)).filter(Boolean);
+        v = strs;
+        break;
+      case "dist":
+        v = widget.editor.getValues().map(r => ({ weight: r.weight, min: r.min, max: r.max }));
+        break;
+      case "json":
+        const raw = widget.value.trim();
+        if (!raw) continue;
+        try { v = JSON.parse(raw); }
+        catch (e) { throw new Error(`${field.label} JSON 错误：${e.message}`); }
+        break;
+      case "multiselect":
+        v = widget.ms.getValues();
+        break;
+      default: continue;
+    }
+    
+    if (field.type === "list" && v.length === 0 && ["Warnings.Banned", "SoundCues"].includes(key)) continue;
+    if (field.type === "multiselect" && v.length === 0) continue;
+    if (field.type === "json" && v === undefined) continue;
+    
+    setPath(data, key, v);
+  }
+  return data;
+}
+
+function collectAll() {
+  const data = collectSimple();
+  
+  const enemies = collectEnemyList("enemyList");
+  if (Object.keys(enemies).length) data.Enemies = enemies;
+  
+  const enemiesNS = collectEnemyList("enemyListNS");
+  if (Object.keys(enemiesNS).length) data.EnemiesNoSync = enemiesNS;
+  
+  const waves = collectWaves();
+  if (waves.length) data.WaveSpawners = waves;
+
+  const ordered = {};
+  for (const k of ORDER) if (k in data) ordered[k] = data[k];
+  for (const k of Object.keys(data)) if (!(k in ordered)) ordered[k] = data[k];
+  return ordered;
+}
+
+function generate() {
+  try {
+    const data = collectAll();
+    const text = JSON.stringify(data, null, 2);
+    document.getElementById("preview").value = text;
+    updateLineNumbers(text);
+    setStatus("已更新", "ok");
+    
+    // 1. 生成成功后自动保存至浏览器本地暂存
+    localStorage.setItem(STORAGE_KEY, text);
+  } catch (e) {
+    setStatus(e.message, "err");
+  }
+}
+
+function updateLineNumbers(text) {
+  const lines = text.split('\n').length;
+  const container = document.getElementById("lineNumbers");
+  let html = '';
+  for (let i = 1; i <= lines; i++) html += `<div>${i}</div>`;
+  container.innerHTML = html;
+}
+
+function setStatus(text, kind = "") {
+  const s = document.getElementById("status");
+  s.textContent = text;
+  s.className = kind;
+}
+
+/* ============================================================
+ * Toast 提示
+ * ============================================================ */
+function showToast(msg, type = "success") {
+  const container = document.getElementById("toast-container");
+  const toast = document.createElement("div");
+  toast.className = "toast " + type;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  
+  // 触发动画
+  requestAnimationFrame(() => {
+    toast.classList.add("show");
+  });
+  
+  // 3秒后自动消失
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+/* ============================================================
+ * 导入 / 导出 / 交互
+ * ============================================================ */
+const previewTA = document.getElementById("preview");
+const lineNumDiv = document.getElementById("lineNumbers");
+previewTA.addEventListener("scroll", () => {
+  lineNumDiv.scrollTop = previewTA.scrollTop;
+});
+
+document.getElementById("toggleLineNumbers").addEventListener("change", (e) => {
+  lineNumDiv.style.display = e.target.checked ? "block" : "none";
+});
+
+document.getElementById("fileInput").addEventListener("change", ev => {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      importJSON(data);
+      setStatus("导入成功", "ok");
+      showToast("导入成功", "success");
+    } catch (e) { 
+      setStatus("导入失败：" + e.message, "err"); 
+      showToast("导入失败", "error");
+    }
+  };
+  reader.readAsText(file);
+  ev.target.value = "";
+});
+
+function importJSON(data) {
+  for (const [key, { field, widget }] of Object.entries(widgetRegistry)) {
+    const v = getPath(data, key);
+    if (v === undefined) continue;
+    switch (field.type) {
+      case "text": case "textarea": widget.value = Array.isArray(v) ? v.join(", ") : String(v); break;
+      case "number": widget.value = Array.isArray(v) ? v[0] : v; break;
+      case "number-or-json": 
+        widget.value = typeof v === "object" ? JSON.stringify(v, null, 2) : v;
+        break;
+      case "list": widget.value = Array.isArray(v) ? v.join(", ") : String(v); break;
+      case "bool": widget.checked = !!v; break;
+      case "numlist":
+        const arr = Array.isArray(v) ? v : [v];
+        widget.editor.setValues(arr.map(x => ({ value: x })));
+        break;
+      case "stringlist":
+        const strArr = Array.isArray(v) ? v : [];
+        widget.editor.setValues(strArr.map(x => ({ value: x })));
+        break;
+      case "dist":
+        widget.editor.setValues(Array.isArray(v) ? v : []);
+        break;
+      case "json":
+        widget.value = JSON.stringify(v, null, 2);
+        break;
+      case "multiselect":
+        widget.ms.setValues(v);
+        break;
+    }
+  }
+
+  // Enemies
+  const enemyList = document.getElementById("enemyList");
+  enemyList.querySelectorAll(".panel").forEach(c => c.remove());
+  enemyList.querySelectorAll(".empty-hint").forEach(h => h.remove());
+  if (data.Enemies && typeof data.Enemies === "object") {
+    for (const [k, v] of Object.entries(data.Enemies)) enemyList.appendChild(createEnemyCard(k, v, "enemyList"));
+  }
+  if (!enemyList.querySelector(".panel")) enemyList.appendChild(createEmptyHint("暂无自定义敌人，点击下方添加"));
+
+  // EnemiesNoSync
+  const enemyListNS = document.getElementById("enemyListNS");
+  enemyListNS.querySelectorAll(".panel").forEach(c => c.remove());
+  enemyListNS.querySelectorAll(".empty-hint").forEach(h => h.remove());
+  if (data.EnemiesNoSync && typeof data.EnemiesNoSync === "object") {
+    for (const [k, v] of Object.entries(data.EnemiesNoSync)) enemyListNS.appendChild(createEnemyCard(k, v, "enemyListNS"));
+  }
+  if (!enemyListNS.querySelector(".panel")) enemyListNS.appendChild(createEmptyHint("暂无无同步敌人，点击下方添加"));
+
+  // Waves
+  const waveList = document.getElementById("waveList");
+  waveList.querySelectorAll(".panel").forEach(c => c.remove());
+  waveList.querySelectorAll(".empty-hint").forEach(h => h.remove());
+  if (Array.isArray(data.WaveSpawners)) {
+    for (const w of data.WaveSpawners) waveList.appendChild(createWaveCard(w));
+  }
+  if (!waveList.querySelector(".panel")) waveList.appendChild(createEmptyHint("暂无虫潮生成器，点击下方添加"));
+
+  generate();
+}
+
+function downloadJSON() {
+  generate();
+  const text = document.getElementById("preview").value;
+  if (!text) return;
+  
+  // 获取难度名称
+  let fileName = "difficulty";
+  const nameWidget = widgetRegistry["Name"]?.widget;
+  if (nameWidget && nameWidget.value.trim() !== "") {
+    fileName = nameWidget.value.trim();
+  }
+  
+  // 移除文件名非法字符
+  fileName = fileName.replace(/[\\/:*?"<>|]/g, "_");
+  
+  const blob = new Blob([text], { type: "application/json;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName + ".json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  
+  showToast("导出成功", "success");
+}
+
+function copyJSON() {
+  generate();
+  const text = document.getElementById("preview").value;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(
+    () => {
+      setStatus("已复制到剪贴板", "ok");
+      showToast("已复制到剪贴板", "success");
+    },
+    () => {
+      setStatus("复制失败，请手动选中", "err");
+      showToast("复制失败，请手动选中", "error");
+    }
+  );
+}
+
+function resetApp() {
+  if(confirm('重置所有配置？本地暂存也会被清除。')) {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  }
+}
+
+/* ============================================================
+ * 拖拽导入
+ * ============================================================ */
+function setupDragAndDrop() {
+  const overlay = document.getElementById("dragOverlay");
+
+  document.addEventListener("dragover", (e) => {
+    e.preventDefault(); // 必须阻止，否则浏览器会直接打开文件
+    overlay.style.display = "flex";
+  });
+
+  document.addEventListener("dragleave", (e) => {
+    e.preventDefault();
+    // 只有鼠标真正离开浏览器窗口时才隐藏遮罩
+    if (e.relatedTarget === null) {
+      overlay.style.display = "none";
+    }
+  });
+
+  document.addEventListener("drop", (e) => {
+    e.preventDefault();
+    overlay.style.display = "none";
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (!file.name.endsWith('.json') && file.type !== 'application/json') {
+        alert('请拖入 .json 文件');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const data = JSON.parse(evt.target.result);
+          importJSON(data);
+          setStatus("导入成功", "ok");
+          showToast("导入成功", "success");
+        } catch (err) {
+          setStatus("文件解析失败：" + err.message, "err");
+          showToast("文件解析失败", "error");
+        }
+      };
+      reader.readAsText(file);
+    }
+  });
+}
+
+/* ============================================================
+ * 侧边栏联动（自然滚动高亮）
+ * ============================================================ */
+function setupScrollSpy() {
+  const editor = document.getElementById("formPane");
+  const breadcrumb = document.getElementById("breadcrumb");
+  const sections = Array.from(document.querySelectorAll(".section"));
+  const navItems = Array.from(document.querySelectorAll(".nav-item"));
+  
+  let ticking = false;
+
+  editor.addEventListener("scroll", () => {
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        const threshold = 80; // 阈值稍微设大一点，确保平滑滚动经过短模块时能准确捕捉
+        const editorTop = editor.getBoundingClientRect().top;
+        let currentId = sections[0] ? sections[0].id : "";
+        
+        for (let i = 0; i < sections.length; i++) {
+          const sec = sections[i];
+          const relTop = sec.getBoundingClientRect().top - editorTop;
+          if (relTop <= threshold) {
+            currentId = sec.id;
+          } else {
+            // 由于 section 顺序是自上而下的，一旦有一个超过了阈值，后面的肯定没到
+            break;
+          }
+        }
+
+        navItems.forEach(el => {
+          if (el.dataset.target === currentId) {
+            if (!el.classList.contains("active")) {
+              navItems.forEach(n => n.classList.remove("active"));
+              el.classList.add("active");
+              breadcrumb.textContent = el.textContent.trim();
+            }
+          }
+        });
+        ticking = false;
+      });
+      ticking = true;
+    }
+  });
+}
+
+/* ============================================================
+ * 启动与初始化
+ * ============================================================ */
+function initApp() {
+  renderSidebar();
+  renderSimpleSections();
+  setupEnemiesEditor();
+  setupWavesEditor();
+  
+  // 尝试从 localStorage 加载暂存数据
+  const savedDraft = localStorage.getItem(STORAGE_KEY);
+  if (savedDraft) {
+    try {
+      const data = JSON.parse(savedDraft);
+      importJSON(data); // 内部会触发 generate() 更新 UI
+      setStatus("已恢复本地暂存", "ok");
+    } catch (e) {
+      console.warn("恢复本地暂存失败，加载默认配置", e);
+      generate(); // 失败则生成默认
+    }
+  } else {
+    generate(); // 无暂存则生成默认
+  }
+  
+  setupScrollSpy();
+  setupDragAndDrop();
+}
+
+initApp();
+</script>
+</body>
+</html>
